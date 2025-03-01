@@ -90,7 +90,7 @@ pulsePerRev -> Resolution (PPR)を指す
 X4も可,X4のほうが細かく取れる
 データシート: https://jp.cuidevices.com/product/resource/amt10-v.pdf
 */
-C610Array c610{};
+C610Array c610;
 
 
 void receive(UDPSocket *receiver);
@@ -155,7 +155,10 @@ const char *recievefromIP = nullptr; //ネットワーク切断検知用
 int main() {
   // 送信データ
   char sendData[32];
-
+ for (int i = 0; i < 3; ++i) // 2台のモーターにIDを設定
+    {
+        c610[i].set_motor_id(i + 1);
+    }
   // PWM周期の設定
   MD1P.period_us(50);
   MD2P.period_us(50);
@@ -336,11 +339,18 @@ void receive(UDPSocket *receiver) { // UDP受信スレッド
         // 10msごとに実行
         if (now - pre > 10ms)
         {
-        int16_t out = data[6] * 20; // data[6] の値をスケーリングして出力
-            
-
-       
-        //printf("RPM: %d\n", c610[0].get_rpm());
+        int16_t current_0 = data[6] * 100; // data[6] の値をスケーリングして出力
+        int16_t current_1 = data[7] * 100;           // モーター2用の電流値
+        int16_t current_2 = data[8] * 100;          // モーター3用の電流値 
+            c610[0].set_raw_current(current_0);
+            c610[1].set_raw_current(current_1);
+            c610[2].set_raw_current(current_2);
+           // printf("data[6]: %d, darta[7]: %d, data[8]: %d\n",data[6],data[7],data[8]);
+            printf("Actual Current -> ID: %d, %d | ID: %d, %d | ID: %d, %d\n",
+            c610[0].get_motor_id(), c610[0].get_rpm(),
+            c610[1].get_motor_id(), c610[1].get_rpm(),
+            c610[2].get_motor_id(), c610[2].get_rpm());
+        // //printf("RPM: %d\n", c610[0].get_rpm());
             // エンコーダーの角度を計算 (度単位)
             //m2006のエンコーダーの現在のパルス*(10/8192) = 現在のangle
 
@@ -349,10 +359,13 @@ void receive(UDPSocket *receiver) { // UDP受信スレッド
            // printf("%d\n", c610[1].get_Angle());
 
             // 各モーターの電流を設定
-            for (auto &e : c610)
-            {
-                e.set_raw_current(out);
-            }
+            // for (auto &e : c610)
+            // {
+            //   //  e.set_raw_current(out);
+            //     e.set_raw_current(current_0);
+            //     e.set_raw_current(current_1);
+            //     e.set_raw_current(current_2);
+            // }
 
             // CANメッセージを生成して送信
             auto msg = c610.to_msgs();
@@ -382,7 +395,7 @@ void receive(UDPSocket *receiver) { // UDP受信スレッド
     // printf("%lf, %lf, %lf, %lf\n", mdp[1], mdp[2], mdp[3], mdp[4]);
     // 
     //printf("%d, %d, %d, %d, %d\n", data[1], data[2], data[3], data[4], data[5]);
-    printf("%d\n",data[6]);//ボタン押したときのデータの値を表示
+   // printf("%d\n",data[6]);//ボタン押したときのデータの値を表示
     // MDに出力
 
     MD1D = mdd[1]; //電磁弁に転用
